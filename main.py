@@ -1,6 +1,7 @@
 import csv
 import sys
 
+from matplotlib import pyplot as plt
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
@@ -9,6 +10,8 @@ from sklearn.pipeline import make_pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 # from gensim.corpora import Dictionary
 from SentenceRanker import SentenceRanker
+from scipy import stats
+
 
 training_tweets = list()
 training_labels = list()
@@ -94,29 +97,35 @@ def find_tweets_with_same_label(label):
 #     #         break
 #     #     print(document)
 
+def rankTweetsEmotionless(query):
+    tweets = training_tweets
+
+    ranker = SentenceRanker(tweets)
+    ranked_results = ranker.rank_sentences(query)
+
+    # print("_________________________________________________________________________________")
+    # print("Without emotion: ")
+    # for i, (sentence, similarity_score) in enumerate(ranked_results):
+    #     print(f"{sentence} (Similarity Score: {similarity_score:.4f})")
+    #     if i >= 10:
+    #         break
+    return ranked_results
+
 def rankTweetsLabels(query):
     emotion = trained_pipeline.predict_proba([query])[0]
     tweets = training_tweets
     labels = training_labels
 
-    # print(emotion)
     ranker = SentenceRanker(tweets)
-    ranked_results = ranker.rank_sentences(query)
-    ranked_results_labels = ranker.rank_sentences_emotions_labels(query,emotion,labels)
-
-    print("_________________________________________________________________________________")
-    print("Without emotion: ")
-    for i, (sentence, similarity_score) in enumerate(ranked_results):
-        print(f"{sentence} (Similarity Score: {similarity_score:.4f})")
-        if i >=10:
-            break
-
-    print("_________________________________________________________________________________")
-    print("With labeled emotions: ")
-    for i, (sentence, similarity_score) in enumerate(ranked_results_labels):
-        print(f"{sentence} (Similarity Score: {similarity_score:.4f})")
-        if i >= 10:
-            break
+    ranked_results = ranker.rank_sentences_emotions_labels(query,emotion,labels)
+    #
+    # print("_________________________________________________________________________________")
+    # print("With labeled emotions: ")
+    # for i, (sentence, similarity_score) in enumerate(ranked_results):
+    #     print(f"{sentence} (Similarity Score: {similarity_score:.4f})")
+    #     if i >= 10:
+    #         break
+    return ranked_results
 
 
 def rankTweetsUnlabeled(query):
@@ -127,19 +136,55 @@ def rankTweetsUnlabeled(query):
         for tweet in tweets:
             predicted_labels.append(trained_pipeline.predict_proba([tweet])[0])
 
-    # print(emotion)
     ranker = SentenceRanker(tweets)
-    ranked_results = ranker.rank_sentences_emotions_unlabeled(query,emotion,predicted_labels)
+    ranked_results = ranker.rank_sentences_emotions_unlabeled(query, emotion, predicted_labels)
 
-    print("_________________________________________________________________________________")
-    print("With unlabeled emotions")
-    for i, (sentence, similarity_score) in enumerate(ranked_results):
-        print(f"{sentence} (Similarity Score: {similarity_score:.4f})")
-        if i >=10:
+    # print("_________________________________________________________________________________")
+    # print("With unlabeled emotions")
+    # for i, (sentence, similarity_score) in enumerate(ranked_results):
+    #     print(f"{sentence} (Similarity Score: {similarity_score:.4f})")
+    #     if i >=10:
+    #         break
+    return ranked_results
+
+def remove_score(list):
+    newList = []
+    for (sentence, score) in list:
+        newList.append(sentence)
+    return newList
+
+def plotJaccardDistance(scoreList1, scoreList2,nameGraph):
+    list1 = remove_score(scoreList1)
+    list2 = remove_score(scoreList2)
+
+    distance_vs_percentage =[]
+    for percentage in [i * 0.005 for i in range(1, 101)]:
+        numberOfSamples = int(len(list1) * percentage)
+        score1 = scoreList1[numberOfSamples][1]
+        score2 = scoreList2[numberOfSamples][1]
+        if(score1 == 0 or score2 == 0):
             break
+        currentList1 = list1[0:numberOfSamples]
+        currentList2 = list2[0:numberOfSamples]
+        intersection = list(set(currentList1) & set(currentList2))
+        union = list(set(currentList1) | set(currentList2))
+        if len(union) ==0:
+            jaccardDistance =0
+        else:
+            jaccardDistance = len(intersection) / len(union)
+        distance_vs_percentage.append((percentage,jaccardDistance))
 
-
-
+    x_values = [pair[0] for pair in distance_vs_percentage]
+    y_values = [pair[1] for pair in distance_vs_percentage]
+    # Plot the pairs
+    plt.plot(x_values, y_values, marker='o', linestyle='-')
+    # Add labels and title
+    plt.xlabel('percentage of ranking considered')
+    plt.ylabel('Jaccard distance')
+    plt.title(nameGraph)
+    # Display the plot
+    plt.grid(True)
+    plt.show()
 
 
 # Press the green button in the gutter to run the script.
@@ -151,8 +196,13 @@ if __name__ == '__main__':
         # emotion = trained_pipeline.predict([query])
 
         # print(f'Emotion: {emotions}')
-        rankTweetsLabels(query)
-        rankTweetsUnlabeled(query)
+        results_emotionless = rankTweetsEmotionless(query)
+        results_labeled_emotions = rankTweetsLabels(query)
+        results_unlabeled_emotion = rankTweetsUnlabeled(query)
+
+        plotJaccardDistance(results_emotionless, results_labeled_emotions, "emotionless vs labeled emotions")
+        plotJaccardDistance(results_emotionless, results_unlabeled_emotion, "emotionless vs unlabeled emotion")
+        plotJaccardDistance(results_labeled_emotions, results_unlabeled_emotion, "labeled emotions vs unlabeled emotions")
 
     #     tweets_with_same_label = find_tweets_with_same_label(emotion)
     #     print(tweets_with_same_label)

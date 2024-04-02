@@ -3,9 +3,13 @@ import sys
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+import pyterrier as pt
+import nltk
+
 
 class SentenceRanker:
     def __init__(self, sentences):
+        # nltk.download("punkt")
         self.sentences = sentences
         self.vectorizer = CountVectorizer().fit(sentences)
         self.vectors = self.vectorizer.transform(sentences)
