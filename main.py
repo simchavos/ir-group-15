@@ -158,8 +158,9 @@ def plotJaccardDistance(scoreList1, scoreList2,nameGraph):
     list2 = remove_score(scoreList2)
 
     distance_vs_percentage =[]
-    for percentage in [i * 0.005 for i in range(1, 101)]:
-        numberOfSamples = int(len(list1) * percentage)
+    for numberOfSamples in range(1,20):
+    # for percentage in [i * 0.005 for i in range(1, 101)]:
+    #     numberOfSamples = int(len(list1) * percentage)
         score1 = scoreList1[numberOfSamples][1]
         score2 = scoreList2[numberOfSamples][1]
         if(score1 == 0 or score2 == 0):
@@ -172,14 +173,14 @@ def plotJaccardDistance(scoreList1, scoreList2,nameGraph):
             jaccardDistance =0
         else:
             jaccardDistance = len(intersection) / len(union)
-        distance_vs_percentage.append((percentage,jaccardDistance))
+        distance_vs_percentage.append((numberOfSamples, jaccardDistance))
 
     x_values = [pair[0] for pair in distance_vs_percentage]
     y_values = [pair[1] for pair in distance_vs_percentage]
     # Plot the pairs
     plt.plot(x_values, y_values, marker='o', linestyle='-')
     # Add labels and title
-    plt.xlabel('percentage of ranking considered')
+    plt.xlabel('first x results considered')
     plt.ylabel('Jaccard distance')
     plt.title(nameGraph)
     # Display the plot
