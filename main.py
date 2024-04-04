@@ -1,5 +1,6 @@
 import csv
 import sys
+import math
 
 from matplotlib import pyplot as plt
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -10,7 +11,45 @@ from sklearn.pipeline import make_pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 # from gensim.corpora import Dictionary
 from SentenceRanker import SentenceRanker
+from SentenceRanker import SimMetric
 from scipy import stats
+import pyterrier as pt
+from pathlib import Path
+from itertools import chain
+
+
+# class BM25:
+#     def __init__(self, corpus, k1=1.5, b=0.75):
+#         self.corpus = corpus
+#         self.k1 = k1
+#         self.b = b
+#         self.avgdl = sum(len(doc) for doc in corpus) / len(corpus)
+#         self.idf = {}
+#         self.doc_len = [len(doc) for doc in corpus]
+#         self.doc_count = len(corpus)
+#         self.compute_idf()
+#
+#     def compute_idf(self):
+#         for doc in self.corpus:
+#             for term in set(doc):
+#                 if term not in self.idf:
+#                     self.idf[term] = 1
+#                 else:
+#                     self.idf[term] += 1
+#
+#         for term, doc_count in self.idf.items():
+#             self.idf[term] = math.log((self.doc_count - doc_count + 0.5) / (doc_count + 0.5) + 1)
+#
+#     def score(self, query):
+#         scores = [0] * len(self.corpus)
+#         for term in query:
+#             if term not in self.idf:
+#                 continue
+#             for i, doc in enumerate(self.corpus):
+#                 f = doc.count(term)
+#                 scores[i] += self.idf[term] * (f * (self.k1 + 1)) / (f + self.k1 * (1 - self.b + self.b * len(doc) / self.avgdl))
+#         return scores
+
 
 
 training_tweets = list()
@@ -147,6 +186,64 @@ def rankTweetsUnlabeled(query):
     #         break
     return ranked_results
 
+
+
+
+
+
+
+
+
+def rankTweetsEmotionlessBM25(query):
+    tweets = training_tweets
+
+    ranker = SentenceRanker(tweets, )
+    ranked_results = ranker.rank_sentences(query, simMetric=SimMetric.BM52)
+
+    # print("_________________________________________________________________________________")
+    # print("Without emotion: ")
+    # for i, (sentence, similarity_score) in enumerate(ranked_results):
+    #     print(f"{sentence} (Similarity Score: {similarity_score:.4f})")
+    #     if i >= 10:
+    #         break
+    return ranked_results
+
+def rankTweetsLabelsBM25(query):
+    emotion = trained_pipeline.predict_proba([query])[0]
+    tweets = training_tweets
+    labels = training_labels
+
+    ranker = SentenceRanker(tweets)
+    ranked_results = ranker.rank_sentences_emotions_labels(query,emotion,labels,simMetric=SimMetric.BM52)
+    #
+    # print("_________________________________________________________________________________")
+    # print("With labeled emotions: ")
+    # for i, (sentence, similarity_score) in enumerate(ranked_results):
+    #     print(f"{sentence} (Similarity Score: {similarity_score:.4f})")
+    #     if i >= 10:
+    #         break
+    return ranked_results
+
+
+def rankTweetsUnlabeledBM25(query):
+    emotion = trained_pipeline.predict_proba([query])[0]
+    tweets = training_tweets
+
+    if predicted_labels == []:
+        for tweet in tweets:
+            predicted_labels.append(trained_pipeline.predict_proba([tweet])[0])
+
+    ranker = SentenceRanker(tweets)
+    ranked_results = ranker.rank_sentences_emotions_unlabeled(query, emotion, predicted_labels,simMetric=SimMetric.BM52)
+
+    # print("_________________________________________________________________________________")
+    # print("With unlabeled emotions")
+    # for i, (sentence, similarity_score) in enumerate(ranked_results):
+    #     print(f"{sentence} (Similarity Score: {similarity_score:.4f})")
+    #     if i >=10:
+    #         break
+    return ranked_results
+
 def remove_score(list):
     newList = []
     for (sentence, score) in list:
@@ -187,23 +284,83 @@ def plotJaccardDistance(scoreList1, scoreList2,nameGraph):
     plt.grid(True)
     plt.show()
 
+# def testRanking():
+#     # if not pt.started():
+#     #     pt.init(tqdm="notebook")
+#
+#     dataset = training_tweets
+#
+#     index = pt.index.IterDictIndexer(
+#         str(Path.cwd()),  # this will be ignored
+#         meta={
+#             "sentence": 65536,  # Assuming 65536 is the maximum length of a sentence
+#         },
+#         type=pt.index.IndexingType.MEMORY,
+#     ).index(dataset, fields=["sentence"])
+#
+#     first_stage_bm25 = pt.BatchRetrieve(
+#         index,
+#         wmodel="BM25",
+#         num_results=100,
+#         metadata=["sentence"],
+#     )
+#
+#     print("Succes")
+#     sys.exit(0)
+
+def bm25Rannking(query):
+    # emotion = trained_pipeline.predict_proba([query])[0]
+    tweets = training_tweets
+    ranker = SentenceRanker(tweets)
+    emotion = trained_pipeline.predict_proba([query])[0]
+    labels = training_labels
+
+
+    # corpus = [sentence.lower().split() for sentence in tweets]
+    # query = query.replace("'", " '").split()
+    # print(query)
+    # bm25 = BM25(corpus)
+    # scores = bm25.score(query)
+    # print(scores)
+    ranked_results = ranker.rank_sentences_emotions_labels(query, emotion,labels)
+    print(ranked_results[:10])
+    print("_______________________")
+    ranked_results = ranker.rank_sentences(query, simMetric=SimMetric.BM52)
+    print(ranked_results[:10])
+    ranked_results = ranker.rank_sentences_emotions_labels(query, emotion,labels, simMetric=SimMetric.BM52)
+    print(ranked_results[:10])
+
+    if predicted_labels == []:
+        for tweet in tweets:
+            predicted_labels.append(trained_pipeline.predict_proba([tweet])[0])
+    ranked_results = ranker.rank_sentences_emotions_unlabeled(query, emotion, predicted_labels, simMetric=SimMetric.BM52)
+    print(ranked_results[:10])
+    return ranked_results
+
+
+
+    # ranker = SentenceRanker(tweets)
+    # ranked_results = ranker.rank_sentences_emotions_unlabeled(query, emotion, predicted_labels)
+
+
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
 
     trained_pipeline = train_model()
+    # sys.exit(0)
     while True:
         query = input('Enter query: ')
         # emotion = trained_pipeline.predict([query])
 
         # print(f'Emotion: {emotions}')
-        results_emotionless = rankTweetsEmotionless(query)
-        results_labeled_emotions = rankTweetsLabels(query)
-        results_unlabeled_emotion = rankTweetsUnlabeled(query)
+        results_emotionless = rankTweetsEmotionlessBM25(query)
+        results_labeled_emotions = rankTweetsLabelsBM25(query)
+        results_unlabeled_emotion = rankTweetsUnlabeledBM25(query)
 
         plotJaccardDistance(results_emotionless, results_labeled_emotions, "emotionless vs labeled emotions")
         plotJaccardDistance(results_emotionless, results_unlabeled_emotion, "emotionless vs unlabeled emotion")
         plotJaccardDistance(results_labeled_emotions, results_unlabeled_emotion, "labeled emotions vs unlabeled emotions")
 
-    #     tweets_with_same_label = find_tweets_with_same_label(emotion)
-    #     print(tweets_with_same_label)
+        # tweets_with_same_label = find_tweets_with_same_label(emotion)
+        # print(tweets_with_same_label)
