@@ -1,6 +1,7 @@
 import csv
 import sys
 import math
+import random
 
 from matplotlib import pyplot as plt
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -284,6 +285,60 @@ def plotJaccardDistance(scoreList1, scoreList2,nameGraph):
     plt.grid(True)
     plt.show()
 
+
+
+
+
+
+def plotJaccardDistanceLoop(scoreList1, scoreList2, nameGraph):
+    # distance_vs_percentage_aggregate = []
+    average_distances = {numberOfSamples: [] for numberOfSamples in range(1, 21)}
+    sublist = random.sample(test_tweets, 100)
+    for i, tweet in enumerate(sublist):
+        print(i)
+        # if i >3:
+        #     break
+        scoreList1 = rankTweetsEmotionlessBM25(tweet)
+        scoreList2 = rankTweetsLabelsBM25(tweet)
+
+        list1 = remove_score(scoreList1)
+        list2 = remove_score(scoreList2)
+
+        # Calculate Jaccard distance for each numberOfSamples
+        for numberOfSamples in range(1, 21):
+            score1 = scoreList1[numberOfSamples][1]
+            score2 = scoreList2[numberOfSamples][1]
+            if score1 == 0 or score2 == 0:
+                break
+            currentList1 = list1[:numberOfSamples]
+            currentList2 = list2[:numberOfSamples]
+            intersection = list(set(currentList1) & set(currentList2))
+            union = list(set(currentList1) | set(currentList2))
+            if len(union) == 0:
+                jaccardDistance = 0
+            else:
+                jaccardDistance = len(intersection) / len(union)
+            average_distances[numberOfSamples].append(jaccardDistance)
+
+        # Calculate the average Jaccard distance for each numberOfSamples
+        distance_vs_percentage_aggregate = [sum(distances) / len(distances) if distances else 0 for
+                                            numberOfSamples, distances in average_distances.items()]
+
+
+    print(distance_vs_percentage_aggregate)
+    x_values = list(range(1, 21))
+    y_values = distance_vs_percentage_aggregate
+    # Plot the pairs
+    plt.plot(x_values, y_values, marker='o', linestyle='-')
+    # Add labels and title
+    plt.xlabel('first x results considered')
+    plt.ylabel('Jaccard distance')
+    plt.title("emotionless vs labeled emotions for BM25")
+    # Display the plot
+    plt.grid(True)
+    plt.show()
+
+
 # def testRanking():
 #     # if not pt.started():
 #     #     pt.init(tqdm="notebook")
@@ -348,6 +403,7 @@ def bm25Rannking(query):
 if __name__ == '__main__':
 
     trained_pipeline = train_model()
+    plotJaccardDistanceLoop([],[],"jo")
     # sys.exit(0)
     while True:
         query = input('Enter query: ')
