@@ -1,25 +1,22 @@
-import sys
 import math
+
+import numpy as np
+from enum import Enum
 
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
-import pyterrier as pt
-import nltk
-from enum import Enum
 
 class SimMetric(Enum):
     COSINE = 1
     BM52 = 2
+
 class SentenceRanker:
     def __init__(self, sentences):
-        # nltk.download("punkt")
         self.sentences = sentences
         self.vectorizer = CountVectorizer().fit(sentences)
         self.vectors = self.vectorizer.transform(sentences)
         self.corpus = [sentence.lower().split() for sentence in sentences]
         self.bm25 = BM25(self.corpus)
-
 
     """rank all sentences only on similarity to the query"""
     def rank_sentences(self, query, simMetric = SimMetric.COSINE):
@@ -87,10 +84,6 @@ class SentenceRanker:
             ranked_sentences = [(self.sentences[idx], result[idx]) for idx in ranked_sentences_indices]
 
         return ranked_sentences
-
-
-
-
 
 class BM25:
     def __init__(self, corpus, k1=1.5, b=0.75):
